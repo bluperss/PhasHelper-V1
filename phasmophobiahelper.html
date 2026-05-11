@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phasmophobia Advanced Assistant</title>
+    <style>
+        /* CSS: Paranormal Terminal Theme */
+        :root {
+            --bg-color: #050505;
+            --panel-bg: #111;
+            --text-main: #e0e0e0;
+            --accent-green: #00ff41; /* DOTS Green */
+            --accent-green-glow: rgba(0, 255, 65, 0.4);
+            --accent-red: #ff3333;
+            --border-color: #333;
+            --font-main: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* CRT / VHS Overlay */
+        .crt-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        header {
+            background: #000;
+            border-bottom: 2px solid var(--accent-green);
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 0 15px var(--accent-green-glow);
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 {
+            color: var(--accent-green);
+            text-shadow: 0 0 10px var(--accent-green);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: var(--panel-bg);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green-glow);
+            color: var(--accent-green);
+        }
+
+        main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            display: none; /* Handled by JS */
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .active-page { display: block; }
+
+        /* Investigation Page Layout */
+        .investigation-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 2fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .investigation-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 768px) {
+            .investigation-grid { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .panel h2 {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            color: #fff;
+            font-size: 1.2rem;
+        }
+
+        /* Evidence Toggles */
+        .evidence-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        .evidence-item.state-1 { /* Confirmed */
+            background: rgba(0, 255, 65, 0.1);
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            box-shadow: inset 0 0 10px var(--accent-green-glow);
+        }
+
+        .evidence-item.state--1 { /* Ruled Out */
+            background: rgba(255, 51, 51, 0.1);
+            border-color: var(--accent-red);
+            color: #777;
+            text-decoration: line-through;
+        }
+
+        /* Behaviors Checklist */
+        .behavior-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            background: #1a1a1a;
+            border-left: 3px solid transparent;
+        }
+        .behavior-label:hover { background: #222; }
+        .behavior-label input:checked + span { color: var(--accent-green); }
+
+        /* Ghost List & Ranking */
+        .ghost-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        .ghost-card.impossible {
+            opacity: 0.2;
+            filter: grayscale(100%);
+            order: 999; /* Push to bottom */
+        }
+
+        .ghost-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .prob-bar-container {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            margin-top: 0.5rem;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .prob-bar {
+            height: 100%;
+            background: var(--accent-green);
+            width: 0%;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        .ghost-details { font-size: 0.85rem; color: #aaa; }
+        .ghost-details strong { color: #ddd; }
+        .ev-tag {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            background: #333;
+            border-radius: 3px;
+            margin-right: 4px;
+            margin-top: 4px;
+        }
+
+        /* Sanity Tracker */
+        .sanity-box {
+            text-align: center;
+            padding: 2rem;
+        }
+        .sanity-input {
+            background: transparent;
+            border: 2px solid var(--accent-green);
+            color: var(--accent-green);
+            font-size: 3rem;
+            width: 120px;
+            text-align: center;
+            padding: 1rem;
+            font-family: inherit;
+            text-shadow: 0 0 10px var(--accent-green);
+        }
+        .sanity-warning {
+            margin-top: 1rem;
+            font-size: 1.2rem;
+            color: var(--accent-red);
+            min-height: 2rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Homepage specific */
+        #home-page {
+            text-align: center;
+            padding-top: 5vh;
+        }
+        .home-title {
+            font-size: 4vw;
+            color: #fff;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+        }
+        .big-btn {
+            font-size: 1.5rem;
+            padding: 1rem 3rem;
+            margin: 1rem;
+            border-color: var(--accent-green);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="crt-overlay"></div>
+
+    <header>
+        <h1>Phasmophobia Terminal</h1>
+        <nav>
+            <button onclick="nav('home')">Home</button>
+            <button onclick="nav('investigation')">Live Investigation</button>
+            <button onclick="nav('sanity')">Sanity Tracker</button>
+        </nav>
+    </header>
+
+    <!-- HOME PAGE -->
+    <main id="home-page" class="active-page">
+        <h2 class="home-title">Advanced Investigation System</h2>
+        <p style="color: #888; margin-bottom: 3rem;">Connect to equipment network to identify entities.</p>
+        <button class="big-btn" onclick="nav('investigation')">Initialize Investigation</button>
+    </main>
+
+    <!-- INVESTIGATION PAGE -->
+    <main id="investigation-page">
+        <div class="investigation-grid">
+            
+            <!-- Evidence Panel -->
+            <div class="panel">
+                <h2>Evidence (Click to cycle)</h2>
+                <div id="evidence-container"></div>
+                <button style="width: 100%; margin-top: 1rem;" onclick="resetInvestigation()">Reset All Data</button>
+            </div>
+
+            <!-- Behavior Panel -->
+            <div class="panel">
+                <h2>Entity Behaviors</h2>
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 1rem;">Select observed traits to calculate probabilities.</p>
+                <div id="behavior-container"></div>
+            </div>
+
+            <!-- Ghost Output Panel -->
+            <div class="panel" style="overflow-y: auto; max-height: 75vh;">
+                <h2>Entity Database / Matches</h2>
+                <div id="ghost-container"></div>
+            </div>
+            
+        </div>
+    </main>
+
+    <!-- SANITY PAGE -->
+    <main id="sanity-page">
+        <div class="panel sanity-box">
+            <h2>Average Team Sanity</h2>
+            <input type="number" id="sanity-val" class="sanity-input" value="100" min="0" max="100" oninput="checkSanity()">
+            <div class="sanity-warning" id="sanity-warning-text">You are currently safe from normal hunts.</div>
+            
+            <div style="text-align: left; margin-top: 2rem; color: #aaa; max-width: 600px; margin-left: auto; margin-right: auto;">
+                <h3>Hunt Thresholds:</h3>
+                <ul style="margin-top: 0.5rem; line-height: 1.6;">
+                    <li><strong style="color: #fff">100%</strong> - Demon (Ability)</li>
+                    <li><strong style="color: #fff">80%</strong> - Thaye (Age 0)</li>
+                    <li><strong style="color: #fff">75%</strong> - Moroi (Cursed), Yokai (Talking)</li>
+                    <li><strong style="color: #fff">70%</strong> - Demon (Normal)</li>
+                    <li><strong style="color: #fff">65%</strong> - Banshee (Target sanity)</li>
+                    <li><strong style="color: #fff">60%</strong> - Mare (Dark room)</li>
+                    <li><strong style="color: #fff">50%</strong> - Standard Hunt Threshold</li>
+                    <li><strong style="color: #fff">40%</strong> - Mare (Light room), Deogen</li>
+                    <li><strong style="color: #fff">35%</strong> - Shade</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- DATA STRUCTURES ---
+
+        const EVIDENCES = [
+            "EMF Level 5", "Spirit Box", "Ghost Writing", 
+            "DOTS Projector", "Ghost Orbs", "Ultraviolet", "Freezing Temperatures"
+        ];
+
+        const BEHAVIORS = [
+            { id: "b_fast", label: "Very fast during hunt", relatedGhosts: ["Revenant", "Deogen", "Thaye", "Moroi", "Hantu", "Jinn", "Raiju", "The Twins"] },
+            { id: "b_slow", label: "Very slow near players", relatedGhosts: ["Deogen", "Revenant"] },
+            { id: "b_early", label: "Hunted early (>50% sanity)", relatedGhosts: ["Demon", "Thaye", "Yokai", "Mare", "Onryo", "Raiju"] },
+            { id: "b_photo", label: "Disappeared in photo", relatedGhosts: ["Phantom"] },
+            { id: "b_throw", label: "Threw multiple objects at once", relatedGhosts: ["Poltergeist"] },
+            { id: "b_breaker", label: "Turned off the breaker", relatedGhosts: ["Hantu", "Jinn", "Mare"] },
+            { id: "b_quiet", label: "Very quiet footsteps", relatedGhosts: ["Myling"] },
+            { id: "b_alone", label: "Responded mostly when alone", relatedGhosts: ["Spirit", "Shade"] },
+            { id: "b_prints", label: "6-finger prints / quick vanish", relatedGhosts: ["Obake"] },
+            { id: "b_dots_cam", label: "DOTS only via video camera", relatedGhosts: ["Goryo"] }
+        ];
+
+        const GHOSTS = [
+            { name: "Spirit", evidence: ["EMF Level 5", "Spirit Box", "Ghost Writing"], desc: "Most common ghost type. Smudging stops hunts for 180s instead of 90s." },
+            { name: "Wraith", evidence: ["EMF Level 5", "Spirit Box", "DOTS Projector"], desc: "Never steps in salt. Can teleport to random players." },
+            { name: "Phantom", evidence: ["Spirit Box", "Ultraviolet", "DOTS Projector"], desc: "Taking a photo makes it disappear. Drains sanity fast when viewed." },
+            { name: "Poltergeist", evidence: ["Spirit Box", "Ghost Writing", "Ultraviolet"], desc: "Throws multiple items at once. Drains sanity per thrown item." },
+            { name: "Banshee", evidence: ["Ghost Orbs", "Ghost Writing", "DOTS Projector"], desc: "Targets one player at a time. Has a special paramic scream." },
+            { name: "Jinn", evidence: ["EMF Level 5", "Ultraviolet", "Freezing Temperatures"], desc: "Moves faster if breaker is on. Cannot turn off the breaker." },
+            { name: "Mare", evidence: ["Spirit Box", "Ghost Orbs", "Ghost Writing"], desc: "Hunts at 60% in dark, 40% in light. Turns off lights frequently." },
+            { name: "Revenant", evidence: ["Ghost Orbs", "Ghost Writing", "Freezing Temperatures"], desc: "Super fast (3m/s) when chasing, super slow (1m/s) when not." },
+            { name: "Shade", evidence: ["EMF Level 5", "Ghost Writing", "Freezing Temperatures"], desc: "Extremely shy. Hunts at 35% sanity. Won't hunt if players are in room." },
+            { name: "Demon", evidence: ["Ultraviolet", "Ghost Writing", "Freezing Temperatures"], desc: "Can hunt at 70%, or any sanity via ability. Smudge only stops for 60s." },
+            { name: "Yurei", evidence: ["Ghost Orbs", "Freezing Temperatures", "DOTS Projector"], desc: "Drains sanity heavily. Can fully close doors." },
+            { name: "Oni", evidence: ["EMF Level 5", "Freezing Temperatures", "DOTS Projector"], desc: "Highly active. Cannot do the 'airball' ghost event. Highly visible during hunts." },
+            { name: "Yokai", evidence: ["Spirit Box", "Ghost Orbs", "DOTS Projector"], desc: "Hunts at 80% if players are talking. Deaf during hunts beyond 2 meters." },
+            { name: "Hantu", evidence: ["Ultraviolet", "Ghost Orbs", "Freezing Temperatures"], desc: "Fast in cold rooms, slow in warm rooms. Shows breath if breaker is off." },
+            { name: "Goryo", evidence: ["EMF Level 5", "Ultraviolet", "DOTS Projector"], desc: "DOTS only visible through a video camera. Never changes favorite room." },
+            { name: "Myling", evidence: ["EMF Level 5", "Ultraviolet", "Ghost Writing"], desc: "Footsteps are completely silent during hunts until very close." },
+            { name: "Onryo", evidence: ["Spirit Box", "Ghost Orbs", "Freezing Temperatures"], desc: "Candles act like crucifixes. Blows out flames to initiate hunts." },
+            { name: "The Twins", evidence: ["EMF Level 5", "Spirit Box", "Freezing Temperatures"], desc: "Two interaction ranges. One twin is slightly faster, one is slightly slower." },
+            { name: "Raiju", evidence: ["EMF Level 5", "Ghost Orbs", "DOTS Projector"], desc: "Extremely fast near active electronic equipment. Hunts early near electronics." },
+            { name: "Obake", evidence: ["EMF Level 5", "Ultraviolet", "Ghost Orbs"], desc: "Leaves 6-fingered prints. Fingerprints disappear faster. Shape-shifts during hunts." },
+            { name: "The Mimic", evidence: ["Spirit Box", "Ultraviolet", "Freezing Temperatures"], desc: "Copies other ghosts' traits. Always presents Fake Ghost Orbs as a 4th evidence." },
+            { name: "Moroi", evidence: ["Spirit Box", "Ghost Writing", "Freezing Temperatures"], desc: "Curses players through Spirit Box, draining sanity fast. Speed scales inversely with sanity." },
+            { name: "Deogen", evidence: ["Spirit Box", "Ghost Writing", "DOTS Projector"], desc: "Always knows where you are. Super fast from afar, extremely slow when close." },
+            { name: "Thaye", evidence: ["Ghost Orbs", "Ghost Writing", "DOTS Projector"], desc: "Starts extremely active, fast, and hunts early. 'Ages' over time becoming slow and weak." }
+        ];
+
+        // --- STATE ---
+        // 0 = Neutral, 1 = Confirmed, -1 = Ruled Out
+        let evidenceState = {};
+        EVIDENCES.forEach(ev => evidenceState[ev] = 0);
+        let selectedBehaviors = [];
+
+        // --- INITIALIZATION ---
+        function init() {
+            renderEvidences();
+            renderBehaviors();
+            updateEngine();
+        }
+
+        // --- NAVIGATION ---
+        function nav(pageId) {
+            document.querySelectorAll('main').forEach(m => m.classList.remove('active-page'));
+            document.getElementById(pageId + '-page').classList.add('active-page');
+        }
+
+        // --- RENDERING ---
+        function renderEvidences() {
+            const container = document.getElementById('evidence-container');
+            container.innerHTML = '';
+            
+            EVIDENCES.forEach(ev => {
+                const el = document.createElement('div');
+                el.className = `evidence-item state-${evidenceState[ev]}`;
+                
+                let icon = "➖";
+                if (evidenceState[ev] === 1) icon = "✔️";
+                if (evidenceState[ev] === -1) icon = "❌";
+
+                el.innerHTML = `<span>${ev}</span> <span>${icon}</span>`;
+                el.onclick = () => toggleEvidence(ev);
+                container.appendChild(el);
+            });
+        }
+
+        function renderBehaviors() {
+            const container = document.getElementById('behavior-container');
+            container.innerHTML = '';
+
+            BEHAVIORS.forEach(b => {
+                const label = document.createElement('label');
+                label.className = 'behavior-label';
+                label.innerHTML = `
+                    <input type="checkbox" style="margin-right: 10px;" 
+                           onchange="toggleBehavior('${b.id}', this.checked)">
+                    <span>${b.label}</span>
+                `;
+                container.appendChild(label);
+            });
+        }
+
+        // --- LOGIC / ENGINE ---
+        function toggleEvidence(ev) {
+            // Cycle: 0 -> 1 -> -1 -> 0
+            if (evidenceState[ev] === 0) evidenceState[ev] = 1;
+            else if (evidenceState[ev] === 1) evidenceState[ev] = -1;
+            else evidenceState[ev] = 0;
+            
+            renderEvidences();
+            updateEngine();
+        }
+
+        function toggleBehavior(id, isChecked) {
+            if (isChecked) selectedBehaviors.push(id);
+            else selectedBehaviors = selectedBehaviors.filter(b => b !== id);
+            updateEngine();
+        }
+
+        function resetInvestigation() {
+            EVIDENCES.forEach(ev => evidenceState[ev] = 0);
+            selectedBehaviors = [];
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            renderEvidences();
+            updateEngine();
+        }
+
+        function updateEngine() {
+            // Calculate Possibility & Probabilities
+            let validGhosts = [];
+            let totalWeight = 0;
+
+            let processedGhosts = GHOSTS.map(ghost => {
+                let isPossible = true;
+                
+                // 1. Evidence Filtering
+                for (let ev of EVIDENCES) {
+                    if (evidenceState[ev] === 1 && !ghost.evidence.includes(ev)) isPossible = false;
+                    if (evidenceState[ev] === -1 && ghost.evidence.includes(ev)) isPossible = false;
+                }
+
+                // Mimic specific check (Fake Orbs)
+                if (ghost.name === "The Mimic") {
+                    if (evidenceState["Ghost Orbs"] === -1) isPossible = false; // Ruled out orbs rules out mimic
+                    isPossible = true; // Mimic bypasses standard orb ruling if orbs are confirmed
+                    for (let ev of EVIDENCES) {
+                        if (ev !== "Ghost Orbs" && evidenceState[ev] === 1 && !ghost.evidence.includes(ev)) isPossible = false;
+                        if (ev !== "Ghost Orbs" && evidenceState[ev] === -1 && ghost.evidence.includes(ev)) isPossible = false;
+                    }
+                }
+
+                let weight = isPossible ? 10 : 0; // Base probability weight
+
+                // 2. Behavior Weighting
+                if (isPossible && selectedBehaviors.length > 0) {
+                    selectedBehaviors.forEach(bId => {
+                        const behavior = BEHAVIORS.find(b => b.id === bId);
+                        if (behavior.relatedGhosts.includes(ghost.name)) {
+                            weight += 25; // High boost for matching behavior
+                        }
+                    });
+                }
+
+                totalWeight += weight;
+
+                return { ...ghost, isPossible, weight };
+            });
+
+            // 3. Calculate Percentages and Sort
+            processedGhosts.forEach(g => {
+                g.probability = totalWeight > 0 && g.isPossible ? Math.round((g.weight / totalWeight) * 100) : 0;
+            });
+
+            processedGhosts.sort((a, b) => {
+                if (a.isPossible !== b.isPossible) return a.isPossible ? -1 : 1; // Possible ones top
+                return b.probability - a.probability; // Highest prob top
+            });
+
+            renderGhosts(processedGhosts);
+        }
+
+        function renderGhosts(ghostList) {
+            const container = document.getElementById('ghost-container');
+            container.innerHTML = '';
+
+            ghostList.forEach(g => {
+                const card = document.createElement('div');
+                card.className = `ghost-card ${g.isPossible ? '' : 'impossible'}`;
+                
+                let evTags = g.evidence.map(ev => `<span class="ev-tag">${ev}</span>`).join('');
+                if(g.name === "The Mimic") evTags += `<span class="ev-tag" style="color:#aaa;">(Fake Ghost Orbs)</span>`;
+
+                card.innerHTML = `
+                    <div class="ghost-header">
+                        <span>${g.name}</span>
+                        <span>${g.isPossible ? g.probability + '%' : '0%'}</span>
+                    </div>
+                    <div class="prob-bar-container">
+                        <div class="prob-bar" style="width: ${g.isPossible ? g.probability : 0}%"></div>
+                    </div>
+                    <div class="ghost-details">
+                        <div style="margin: 0.5rem 0;">${evTags}</div>
+                        <strong>Intel:</strong> ${g.desc}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- SANITY TRACKER LOGIC ---
+        function checkSanity() {
+            const val = parseInt(document.getElementById('sanity-val').value);
+            const warningText = document.getElementById('sanity-warning-text');
+            
+            if (val > 80) {
+                warningText.style.color = '#00ff41';
+                warningText.innerText = "Safe from standard hunts. (Demon ability active anytime).";
+            } else if (val > 65) {
+                warningText.style.color = 'orange';
+                warningText.innerText = "Warning: Early hunters (Thaye, Demon, Yokai, Moroi) can attack.";
+            } else if (val > 50) {
+                warningText.style.color = 'orange';
+                warningText.innerText = "Danger: Mare (dark room) and Banshee threshold reached.";
+            } else if (val > 35) {
+                warningText.style.color = 'var(--accent-red)';
+                warningText.innerText = "EXTREME DANGER: Standard hunt threshold crossed. All normal ghosts can hunt.";
+            } else {
+                warningText.style.color = 'var(--accent-red)';
+                warningText.innerText = "CRITICAL: Shade threshold crossed. Any ghost can hunt.";
+            }
+        }
+
+        // Boot
+        window.onload = init;
+
+    </script>
+</body>
+</html>
